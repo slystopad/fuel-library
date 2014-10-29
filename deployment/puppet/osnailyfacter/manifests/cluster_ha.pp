@@ -81,18 +81,37 @@ class osnailyfacter::cluster_ha {
     }
   }
 
+  $nova_hash_raw        = $::fuel_settings['nova']
+  $glance_hash_raw      = $::fuel_settings['glance']
+  $swift_hash_raw       = $::fuel_settings['swift']
+  $cinder_hash_raw      = $::fuel_settings['cinder']
+
+  $keystone_hash        = $::fuel_settings['keystone']
   $storage_hash         = $::fuel_settings['storage']
-  $nova_hash            = $::fuel_settings['nova']
   $mysql_hash           = $::fuel_settings['mysql']
   $rabbit_hash          = $::fuel_settings['rabbit']
-  $glance_hash          = $::fuel_settings['glance']
-  $keystone_hash        = $::fuel_settings['keystone']
-  $swift_hash           = $::fuel_settings['swift']
-  $cinder_hash          = $::fuel_settings['cinder']
   $access_hash          = $::fuel_settings['access']
   $nodes_hash           = $::fuel_settings['nodes']
   $mp_hash              = $::fuel_settings['mp']
   $network_manager      = "nova.network.manager.${novanetwork_params['network_manager']}"
+
+  # override user passwords if using AD since it's read only
+  # or other LDAP in read only
+  if $::fuel_settings['keystone']['use_ldap'] {
+    $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone']['ldap_nova_password']})
+    $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone']['ldap_glance_password']})
+    $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone']['ldap_swift_password']})
+    $cinder_hash     = merge($cinder_hash_raw,     {'user_password' => $::fuel_settings['keystone']['ldap_cinder_password']})
+    $ceilometer_hash = merge($ceilometer_hash_raw, {'user_password' => $::fuel_settings['keystone']['ldap_ceilometer_password']})
+    $heat_hash       = merge($heat_hash_raw,       {'user_password' => $::fuel_settings['keystone']['ldap_heat_password']})
+  } else {
+    $nova_hash       = $nova_hash_raw
+    $glance_hash     = $glance_hash_raw
+    $swift_hash      = $swift_hash_raw
+    $cinder_hash     = $cinder_hash_raw
+    $ceilometer_hash = $ceilometer_hash_raw
+    $heat_hash       = $heat_hash_raw
+  }
 
   if !$rabbit_hash['user'] {
     $rabbit_hash['user'] = 'nova'

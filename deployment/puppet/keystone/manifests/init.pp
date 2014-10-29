@@ -88,6 +88,7 @@ class keystone(
   $max_pool_size        = '10',
   $max_overflow         = '30',
   $max_retries          = '-1',
+  $use_ldap            = false,
 ) {
 
   validate_re($catalog_type,   'template|sql')
@@ -166,6 +167,12 @@ class keystone(
       Package['keystone'] -> Group['keystone']
       Package['keystone'] -> File['/etc/keystone']
       Package['keystone'] -> Keystone_config <| |>
+
+  if ! $use_ldap {
+   keystone_config {
+      'identity/driver': value =>"keystone.identity.backends.sql.Identity";
+    }
+  }
 
   # default config
   keystone_config {

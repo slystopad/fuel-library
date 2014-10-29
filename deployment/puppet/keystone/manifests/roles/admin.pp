@@ -36,29 +36,33 @@ class keystone::roles::admin(
   $admin_tenant = 'openstack'
 ) {
 
-  keystone_tenant { 'services':
-    ensure      => present,
-    enabled     => 'True',
-    description => 'Tenant for the openstack services',
-  }
-  keystone_tenant { $admin_tenant:
-    ensure      => present,
-    enabled     => 'True',
-    description => 'admin tenant',
-  }
-  keystone_user { $admin:
-    ensure      => present,
-    enabled     => 'True',
-    tenant      => $admin_tenant,
-    email       => $email,
-    password    => $password,
-  }
-  keystone_role { ['admin', 'Member']:
-    ensure => present,
-  }
-  keystone_user_role { "${admin}@${admin_tenant}":
-    roles  => 'admin',
-    ensure => present,
+  if ! $::fuel_settings['keystone']['use_ldap'] {
+    keystone_tenant { 'services':
+      ensure      => present,
+      enabled     => 'True',
+      description => 'Tenant for the openstack services',
+    }
+    keystone_tenant { $admin_tenant:
+      ensure      => present,
+      enabled     => 'True',
+      description => 'admin tenant',
+    }
+    keystone_user { $admin:
+      ensure      => present,
+      enabled     => 'True',
+      tenant      => $admin_tenant,
+      email       => $email,
+      password    => $password,
+    }
+    ## ???
+    #keystone_role { ['admin', 'Member']:
+    keystone_role { ['admin', 'member']:
+      ensure => present,
+    }
+    keystone_user_role { "${admin}@${admin_tenant}":
+      roles  => 'admin',
+      ensure => present,
+    }
   }
 
 }

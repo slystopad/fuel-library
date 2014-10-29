@@ -98,6 +98,7 @@ class openstack::keystone (
   $max_pool_size               = '10',
   $max_overflow                = '30',
   $max_retries                 = '-1',
+  $use_ldap                    = $::fuel_settings['keystone']['use_ldap'],
 ) {
 
   # Install and configure Keystone
@@ -105,6 +106,10 @@ class openstack::keystone (
     $sql_conn = "mysql://${$db_user}:${db_password}@${db_host}/${db_name}?read_timeout=60"
   } else {
     fail("db_type ${db_type} is not supported")
+  }
+
+  if $use_ldap {
+    class {'keystone::config::ldap': }
   }
 
   # I have to do all of this crazy munging b/c parameters are not
@@ -216,6 +221,7 @@ class openstack::keystone (
     rabbit_virtual_host => $rabbit_virtual_host,
     memcache_servers    => $memcache_servers,
     memcache_server_port => $memcache_server_port,
+    use_ldap            => $use_ldap,
   }
 
   if ($enabled) {
