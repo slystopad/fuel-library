@@ -168,8 +168,12 @@ class keystone(
       Package['keystone'] -> File['/etc/keystone']
       Package['keystone'] -> Keystone_config <| |>
 
-  if ! $use_ldap {
-   keystone_config {
+  if $use_ldap {
+    keystone_config {
+      'identity/driver': value =>"keystone.identity.backends.ldap.Identity";
+    }
+  } else {
+    keystone_config {
       'identity/driver': value =>"keystone.identity.backends.sql.Identity";
     }
   }
@@ -183,7 +187,7 @@ class keystone(
     'DEFAULT/compute_port': value => $compute_port;
     'DEFAULT/debug':        value => $debug;
     'DEFAULT/verbose':      value => $verbose;
-    'identity/driver': value =>"keystone.identity.backends.sql.Identity";
+    #'identity/driver': value =>"keystone.identity.backends.sql.Identity";
     'policy/driver': value =>"keystone.policy.backends.rules.Policy";
     'ec2/driver': value =>"keystone.contrib.ec2.backends.sql.Ec2";
     'filter:debug/paste.filter_factory': value =>"keystone.common.wsgi:Debug.factory";

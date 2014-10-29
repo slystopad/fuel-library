@@ -97,7 +97,7 @@ class osnailyfacter::cluster_ha {
 
   # override user passwords if using AD since it's read only
   # or other LDAP in read only
-  if $::fuel_settings['keystone']['use_ldap'] {
+  if $::fuel_settings['keystone_ldap']['use_ldap'] {
     $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone']['ldap_nova_password']})
     $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone']['ldap_glance_password']})
     $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone']['ldap_swift_password']})
