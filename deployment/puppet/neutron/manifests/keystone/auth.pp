@@ -7,18 +7,20 @@ class neutron::keystone::auth (
   $internal_address   = '127.0.0.1',
 ) {
 
-  keystone_user { $neutron_config['keystone']['admin_user']:
-    ensure   => present,
-    password => $neutron_config['keystone']['admin_password'],
-    email    => $neutron_config['keystone']['admin_email'],
-    tenant   => $neutron_config['keystone']['admin_tenant_name'],
+  if ! $::fuel_settings['keystone']['use_ldap'] {
+    keystone_user { $neutron_config['keystone']['admin_user']:
+      ensure   => present,
+      password => $neutron_config['keystone']['admin_password'],
+      email    => $neutron_config['keystone']['admin_email'],
+      tenant   => $neutron_config['keystone']['admin_tenant_name'],
+    }
+    keystone_user_role { "${neutron_config['keystone']['admin_user']}@services":
+      ensure  => present,
+      roles   => 'admin',
+    }
+  
+    Keystone_user_role["${neutron_config['keystone']['admin_user']}@services"] ~> Service <| title == 'neutron-server' |>
   }
-  keystone_user_role { "${neutron_config['keystone']['admin_user']}@services":
-    ensure  => present,
-    roles   => 'admin',
-  }
-
-  Keystone_user_role["${neutron_config['keystone']['admin_user']}@services"] ~> Service <| title == 'neutron-server' |>
 
   keystone_service { $neutron_config['keystone']['admin_user']:
     ensure      => present,
