@@ -10,11 +10,19 @@ class sahara::keystone::auth (
   $email            = 'sahara@localhost'
 ) {
 
-  keystone_user { $auth_name:
-    ensure   => present,
-    password => $password,
-    email    => $email,
-    tenant   => $tenant,
+  if ! $::fuel_settings['keystone']['use_ldap'] {
+    keystone_user { $auth_name:
+      ensure   => present,
+      password => $password,
+      email    => $email,
+      tenant   => $tenant,
+    }
+
+    keystone_user_role { "${auth_name}@${tenant}":
+      ensure  => present,
+      roles   => 'admin',
+    }
+  
   }
 
   keystone_service { $auth_name:
@@ -29,11 +37,6 @@ class sahara::keystone::auth (
     public_url   => "http://${public_address}:${sahara_port}/v1.1/%(tenant_id)s",
     internal_url => "http://${internal_address}:${sahara_port}/v1.1/%(tenant_id)s",
     admin_url    => "http://${admin_address}:${sahara_port}/v1.1/%(tenant_id)s",
-  }
-
-  keystone_user_role { "${auth_name}@${tenant}":
-    ensure  => present,
-    roles   => 'admin',
   }
 
 }
