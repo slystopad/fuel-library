@@ -63,23 +63,25 @@ class heat::keystone::auth (
 
   validate_string($password)
 
-  Keystone_user_role["${auth_name}@${tenant}"] ~>
-    Service <| name == 'heat-api' |>
+  if ! $::fuel_settings['keystone']['use_ldap'] {
+    Keystone_user_role["${auth_name}@${tenant}"] ~>
+      Service <| name == 'heat-api' |>
+  
+    keystone_user { $auth_name:
+      ensure   => present,
+      password => $password,
+      email    => $email,
+      tenant   => $tenant,
+    }
+  
+    keystone_user_role { "${auth_name}@${tenant}":
+      ensure  => present,
+      roles   => ['admin'],
+    }
 
-  keystone_user { $auth_name:
-    ensure   => present,
-    password => $password,
-    email    => $email,
-    tenant   => $tenant,
-  }
-
-  keystone_user_role { "${auth_name}@${tenant}":
-    ensure  => present,
-    roles   => ['admin'],
-  }
-
-  keystone_role { 'heat_stack_user':
-        ensure => present,
+    keystone_role { 'heat_stack_user':
+      ensure => present,
+    }
   }
 
   keystone_service { $auth_name:
