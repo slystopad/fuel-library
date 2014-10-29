@@ -98,7 +98,7 @@ class openstack::keystone (
   $max_pool_size               = '10',
   $max_overflow                = '30',
   $max_retries                 = '-1',
-  $use_ldap                    = $::fuel_settings['keystone']['use_ldap'],
+  $use_ldap                    = $::fuel_settings['keystone_ldap']['use_ldap'],
 ) {
 
   # Install and configure Keystone
@@ -108,6 +108,7 @@ class openstack::keystone (
     fail("db_type ${db_type} is not supported")
   }
 
+  # Configure LDAP backend if enabled via UI
   if $use_ldap {
     class {'keystone::config::ldap': }
   }
