@@ -45,15 +45,22 @@ class swift::keystone::auth(
     $public_address_real = $public_address
   }
 
-  keystone_user { $auth_name:
-    ensure   => present,
-    tenant => 'services',
-    password => $password,
-  }
-  keystone_user_role { "${auth_name}@services":
-    ensure  => present,
-    roles   => 'admin',
-    require => Keystone_user[$auth_name]
+  if ! $::fuel_settings['keystone']['use_ldap'] {
+    keystone_user { $auth_name:
+      ensure   => present,
+      tenant => 'services',
+      password => $password,
+    }
+    keystone_user_role { "${auth_name}@services":
+      ensure  => present,
+      roles   => 'admin',
+      require => Keystone_user[$auth_name]
+    }
+
+    if $operator_roles {
+      #Roles like "admin" may be defined elsewhere, so use ensure_resource
+      ensure_resource('keystone_role', $operator_roles, { 'ensure' => 'present'})
+    }   
   }
 
   keystone_service { $auth_name:
