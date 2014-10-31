@@ -78,5 +78,9 @@ class keystone::config::ldap(
     'ldap/tenant_id_prefix': value => $tenant_id_prefix;
     'ldap/role_name_prefix':   value => $role_name_prefix;
     'ldap/tenant_name_prefix': value => $tenant_name_prefix;
+    #
+    'ldap/user_allow_create':       value => "False";
+    'ldap/user_allow_update':       value => "False";
+    'ldap/user_allow_delete':       value => "False";
   }
 }
