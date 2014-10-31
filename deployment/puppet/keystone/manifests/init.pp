@@ -171,7 +171,7 @@ class keystone(
   if $use_ldap {
     keystone_config {
       #'identity/driver': value =>"keystone.identity.backends.ldap.Identity";
-      'assignment/driver': value =>"keystone.identity.backends.ldap.Identity";
+      'assignment/driver': value =>"keystone.assignment.backends.sql.Assignment";
     }
   } else {
     keystone_config {
