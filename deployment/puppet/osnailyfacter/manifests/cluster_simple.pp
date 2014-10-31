@@ -2,8 +2,14 @@ class osnailyfacter::cluster_simple {
 
   if $::use_quantum {
     $novanetwork_params  = {}
-    $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    debug__dump_to_file('/tmp/neutron_cfg.yaml', $quantum_config)
+    #$quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
+    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
+      $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
+    } else {
+      $quantum_config_raw = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
+    }
+    #debug__dump_to_file('/tmp/neutron_cfg.yaml', $quantum_config)
+    debug__dump_to_file('/tmp/neutron_cfg.yaml', $quantum_config_raw)
     if $::fuel_settings['nsx_plugin']['metadata']['enabled'] {
       $use_vmware_nsx = true
       $neutron_nsx_config = $::fuel_settings['nsx_plugin']
@@ -41,7 +47,11 @@ class osnailyfacter::cluster_simple {
   if !$::fuel_settings['heat'] {
     $heat_hash = {}
   } else {
-    $heat_hash = $::fuel_settings['heat']
+    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
+      $heat_hash = $::fuel_settings['heat']
+    } else {
+      $heat_hash_raw = $::fuel_settings['heat']
+    }
   }
 
   if !$::fuel_settings['ceilometer'] {
@@ -52,7 +62,11 @@ class osnailyfacter::cluster_simple {
       metering_secret => 'ceilometer',
     }
   } else {
-    $ceilometer_hash = $::fuel_settings['ceilometer']
+    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
+      $ceilometer_hash = $::fuel_settings['ceilometer']
+    } else {
+      $ceilometer_hash_raw = $::fuel_settings['ceilometer']
+    }
   }
 
   # vCenter integration
@@ -75,17 +89,40 @@ class osnailyfacter::cluster_simple {
     }
   }
 
+  $nova_hash_raw        = $::fuel_settings['nova']
+  $glance_hash_raw      = $::fuel_settings['glance']
+  $swift_hash_raw       = $::fuel_settings['swift']
+  $cinder_hash_raw      = $::fuel_settings['cinder']
+
+  #$nova_hash            = $::fuel_settings['nova']
+  #$glance_hash          = $::fuel_settings['glance']
+  #$swift_hash           = $::fuel_settings['swift']
+  #$cinder_hash          = $::fuel_settings['cinder']
+  $keystone_hash        = $::fuel_settings['keystone']
   $storage_hash         = $::fuel_settings['storage']
-  $nova_hash            = $::fuel_settings['nova']
   $mysql_hash           = $::fuel_settings['mysql']
   $rabbit_hash          = $::fuel_settings['rabbit']
-  $glance_hash          = $::fuel_settings['glance']
-  $keystone_hash        = $::fuel_settings['keystone']
-  $swift_hash           = $::fuel_settings['swift']
-  $cinder_hash          = $::fuel_settings['cinder']
   $access_hash          = $::fuel_settings['access']
   $nodes_hash           = $::fuel_settings['nodes']
   $network_manager      = "nova.network.manager.${novanetwork_params['network_manager']}"
+
+  if $::fuel_settings['keystone_ldap']['use_ldap'] {
+    $quantum_config  = merge($quantum_config_raw,  {'admin_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $cinder_hash     = merge($cinder_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $ceilometer_hash = merge($ceilometer_hash_raw, {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $heat_hash       = merge($heat_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+  } else {
+    $nova_hash       = $nova_hash_raw
+    $glance_hash     = $glance_hash_raw
+    $swift_hash      = $swift_hash_raw
+    $cinder_hash     = $cinder_hash_raw
+    $ceilometer_hash = $ceilometer_hash_raw
+    $heat_hash       = $heat_hash_raw
+  }
+
 
   if !$rabbit_hash[user] {
     $rabbit_hash[user] = 'nova'
