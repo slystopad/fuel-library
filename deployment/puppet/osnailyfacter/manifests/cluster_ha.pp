@@ -98,12 +98,12 @@ class osnailyfacter::cluster_ha {
   # override user passwords if using AD since it's read only
   # or other LDAP in read only
   if $::fuel_settings['keystone_ldap']['use_ldap'] {
-    $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone']['ldap_nova_password']})
-    $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone']['ldap_glance_password']})
-    $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone']['ldap_swift_password']})
-    $cinder_hash     = merge($cinder_hash_raw,     {'user_password' => $::fuel_settings['keystone']['ldap_cinder_password']})
-    $ceilometer_hash = merge($ceilometer_hash_raw, {'user_password' => $::fuel_settings['keystone']['ldap_ceilometer_password']})
-    $heat_hash       = merge($heat_hash_raw,       {'user_password' => $::fuel_settings['keystone']['ldap_heat_password']})
+    $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $cinder_hash     = merge($cinder_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $ceilometer_hash = merge($ceilometer_hash_raw, {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
+    $heat_hash       = merge($heat_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
   } else {
     $nova_hash       = $nova_hash_raw
     $glance_hash     = $glance_hash_raw
