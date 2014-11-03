@@ -33,12 +33,14 @@ Puppet::Type.type(:keystone_user_role).provide(
   end
 
   def create
-    user_id, tenant_id = get_user_and_tenant
+    #user_id, tenant_id = get_user_and_tenant
+    user_id, tenant_id = get_username_and_tenantid
     resource[:roles].each do |role_name|
       role_id = self.class.get_roles[role_name]
       auth_keystone(
         'user-role-add',
-        '--user-id', user_id,
+        #'--user-id', user_id,
+        '--user', user_id,
         '--tenant-id', tenant_id,
         '--role-id', role_id
       )
@@ -48,7 +50,19 @@ Puppet::Type.type(:keystone_user_role).provide(
   def get_user_and_tenant
     user, tenant = resource[:name].split('@', 2)
     tenant_id = self.class.get_tenants[tenant]
+    #notice(">>>")
+    #notice(tenant_id)
+    #notice(self.class.get_users(tenant_id))
     [self.class.get_users(tenant_id)[user], self.class.get_tenants[tenant]]
+  end
+
+  def get_username_and_tenantid
+    user, tenant = resource[:name].split('@', 2)
+    tenant_id = self.class.get_tenants[tenant]
+    #notice(">>>")
+    #notice(tenant_id)
+    #notice(self.class.get_users(tenant_id))
+    [user, self.class.get_tenants[tenant]]
   end
 
   def exists?
