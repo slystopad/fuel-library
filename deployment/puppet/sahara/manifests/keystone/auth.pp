@@ -10,19 +10,19 @@ class sahara::keystone::auth (
   $email            = 'sahara@localhost'
 ) {
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
     keystone_user { $auth_name:
       ensure   => present,
       password => $password,
       email    => $email,
       tenant   => $tenant,
     }
-
-    keystone_user_role { "${auth_name}@${tenant}":
-      ensure  => present,
-      roles   => 'admin',
-    }
   
+  }
+
+  keystone_user_role { "${auth_name}@${tenant}":
+    ensure  => present,
+    roles   => 'admin',
   }
 
   keystone_service { $auth_name:

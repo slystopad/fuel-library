@@ -63,7 +63,7 @@ class heat::keystone::auth_cfn (
 
   validate_string($password)
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
     Keystone_user_role["${auth_name}@${tenant}"] ~>
       Service <| name == 'heat-api-cfn' |>
   
@@ -73,11 +73,11 @@ class heat::keystone::auth_cfn (
       email    => $email,
       tenant   => $tenant,
     }
-  
-    keystone_user_role { "${auth_name}@${tenant}":
-      ensure  => present,
-      roles   => ['admin'],
-    }
+  }
+ 
+  keystone_user_role { "${auth_name}@${tenant}":
+    ensure  => present,
+    roles   => ['admin'],
   }
 
   keystone_service { $auth_name:

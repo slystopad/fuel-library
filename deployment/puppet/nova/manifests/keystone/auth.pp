@@ -93,7 +93,8 @@ class nova::keystone::auth(
     warning('The cinder parameter is deprecated and has no effect.')
   }
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  ##???
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
     Keystone_endpoint["${region}/${auth_name}"] ~> Service <| name == 'nova-api' |>
   
     keystone_user { $auth_name:
@@ -102,10 +103,11 @@ class nova::keystone::auth(
       email    => $email,
       tenant   => $tenant,
     }
-    keystone_user_role { "${auth_name}@${tenant}":
-      ensure  => present,
-      roles   => 'admin',
-    }
+  }
+
+  keystone_user_role { "${auth_name}@${tenant}":
+    ensure  => present,
+    roles   => 'admin',
   }
 
   keystone_service { $auth_name:

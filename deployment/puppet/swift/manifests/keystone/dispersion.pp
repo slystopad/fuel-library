@@ -27,16 +27,16 @@ class swift::keystone::dispersion(
   $auth_pass = 'dispersion_password'
 ) {
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
     keystone_user { $auth_user:
       ensure   => present,
       password => $auth_pass,
     }
+  }
   
-    keystone_user_role { "${auth_user}@services":
-      ensure  => present,
-      roles   => 'admin',
-      require => Keystone_user[$auth_user]
-    }
+  keystone_user_role { "${auth_user}@services":
+    ensure  => present,
+    roles   => 'admin',
+    require => Keystone_user[$auth_user]
   }
 }

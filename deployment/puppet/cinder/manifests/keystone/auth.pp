@@ -80,7 +80,7 @@ class cinder::keystone::auth (
   $internal_protocol     = 'http'
 ) {
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
   Keystone_user_role["${auth_name}@${tenant}"] ~> Service <| name == 'cinder-api' |>
   
     keystone_user { $auth_name:
@@ -89,10 +89,11 @@ class cinder::keystone::auth (
       email    => $email,
       tenant   => $tenant,
     }
-    keystone_user_role { "${auth_name}@${tenant}":
-      ensure  => present,
-      roles   => 'admin',
-    }
+  }
+  ## identity=ldap assigment=sql
+  keystone_user_role { "${auth_name}@${tenant}":
+    ensure  => present,
+    roles   => 'admin',
   }
   keystone_service { $auth_name:
     ensure      => present,

@@ -7,13 +7,7 @@ class osnailyfacter::cluster_ha {
 
   if $::use_quantum {
     $novanetwork_params  = {}
-    #$quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
-      $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    } else {
-      $quantum_config_raw = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    }
-    
+    $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
     if $::fuel_settings['nsx_plugin']['metadata']['enabled'] {
       $use_vmware_nsx = true
       $neutron_nsx_config = $::fuel_settings['nsx_plugin']
@@ -49,17 +43,13 @@ class osnailyfacter::cluster_ha {
     $murano_hash = $::fuel_settings['murano']
   }
 
-  if !$::fuel_settings['heat'] {
+  if !$::fuel_settings['heat'] and !$::fuel_settings['keystone_ldap']['use_ldap'] {
     $heat_hash = {}
   } else {
-    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
-      $heat_hash = $::fuel_settings['heat']
-    } else {
-      $heat_hash_raw = $::fuel_settings['heat']
-    }
+    $heat_hash_raw = $::fuel_settings['heat']
   }
 
-  if !$::fuel_settings['ceilometer'] {
+  if !$::fuel_settings['ceilometer'] and !$::fuel_settings['keystone_ldap']['use_ldap'] {
     $ceilometer_hash = {
       enabled => false,
       db_password => 'ceilometer',
@@ -67,11 +57,7 @@ class osnailyfacter::cluster_ha {
       metering_secret => 'ceilometer',
     }
   } else {
-    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
-      $ceilometer_hash = $::fuel_settings['ceilometer']
-    } else {
-      $ceilometer_hash_raw = $::fuel_settings['ceilometer']
-    }
+    $ceilometer_hash_raw = $::fuel_settings['ceilometer']
   }
 
 
@@ -95,7 +81,6 @@ class osnailyfacter::cluster_ha {
     }
   }
 
-  #$quantum_config_raw   = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
   $nova_hash_raw        = $::fuel_settings['nova']
   $glance_hash_raw      = $::fuel_settings['glance']
   $swift_hash_raw       = $::fuel_settings['swift']
@@ -113,7 +98,6 @@ class osnailyfacter::cluster_ha {
   # override user passwords if using AD since it's read only
   # or other LDAP in read only
   if $::fuel_settings['keystone_ldap']['use_ldap'] {
-    $quantum_config  = merge($quantum_config_raw,  {'admin_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})

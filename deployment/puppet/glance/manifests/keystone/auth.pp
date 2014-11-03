@@ -34,7 +34,7 @@ class glance::keystone::auth(
   $internal_protocol  = 'http'
 ) {
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
     Keystone_user_role["${auth_name}@${tenant}"] ~> Service <| name == 'glance-registry' |>
     Keystone_user_role["${auth_name}@${tenant}"] ~> Service <| name == 'glance-api' |>
     Keystone_endpoint["${region}/${auth_name}"]  ~> Service <| name == 'glance-api' |>
@@ -45,11 +45,11 @@ class glance::keystone::auth(
       email    => $email,
       tenant   => $tenant,
     }
+  }
   
-    keystone_user_role { "${auth_name}@${tenant}":
-      ensure  => present,
-      roles   => 'admin',
-    }
+  keystone_user_role { "${auth_name}@${tenant}":
+    ensure  => present,
+    roles   => 'admin',
   }
 
   keystone_service { $auth_name:

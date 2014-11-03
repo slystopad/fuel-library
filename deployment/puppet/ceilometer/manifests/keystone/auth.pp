@@ -60,9 +60,9 @@ class ceilometer::keystone::auth (
 
   validate_string($password)
 
-  if ! $::fuel_settings['keystone']['use_ldap'] {
   Keystone_user_role["${auth_name}@${tenant}"] ~>
     Service <| title == 'ceilometer-api' |>
+  if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
 
     keystone_user { $auth_name:
       ensure   => present,
@@ -70,6 +70,7 @@ class ceilometer::keystone::auth (
       email    => $email,
       tenant   => $tenant,
     }
+  }
     if !defined(Keystone_role['ResellerAdmin']) {
       keystone_role { 'ResellerAdmin':
         ensure => present,
@@ -80,7 +81,6 @@ class ceilometer::keystone::auth (
       roles   => ['admin', 'ResellerAdmin'],
       require => Keystone_role['ResellerAdmin'],
     }
-  }
 
   keystone_service { $auth_name:
     ensure      => present,
