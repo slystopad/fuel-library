@@ -7,8 +7,8 @@ Puppet::Type.type(:neutron_f5_bigip_lbaas_agent_config).provide(
 
   def section
     ## ini file without sections sections
-    #resource[:name].split('/', 2).first
-    return ""
+    resource[:name].split('/', 2).first
+    #return ""
   end
 
   def setting

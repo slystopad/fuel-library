@@ -675,6 +675,17 @@ class osnailyfacter::cluster_ha {
         }
       }
 
+      $f5_hash = $::fuel_settings['f5']
+      warning(">>> BEFORE F5 LBaaS if")
+      if $::fuel_settings['f5']['use_lbaas'] {
+        warning(">>> INSIDE F5 LBaaS if")
+        class {'neutron::agents::f5-bigip-lbaas':
+          agent_cfg	=> $f5_hash,
+        }
+      }
+      warning(">>> AFTER F5 LBaaS if")
+
+
       #ADDONS END
 
     } #CONTROLLER ENDS
