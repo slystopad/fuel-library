@@ -104,7 +104,7 @@ class neutron::agents::f5-bigip-lbaas (
     mode => '0755',
     owner => root,
     group => root,
-    source => "puppet:///modules/neutron/files/f5-service-provider.sh",
+    source => "puppet:///modules/neutron/f5-service-provider.sh",
   }
 
   neutron_config {'DEFAULT/service_plugins':
@@ -133,7 +133,7 @@ class neutron::agents::f5-bigip-lbaas (
     mode => '0755',
     owner => root,
     group => root,
-    source => "puppet:///modules/neutron/files/ocf/neutron-agent-f5",
+    source => "puppet:///modules/neutron/ocf/neutron-agent-f5",
   }
 
 
