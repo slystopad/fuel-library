@@ -54,6 +54,11 @@ class neutron::agents::f5-bigip-lbaas (
   Neutron_config<||>             ~> Service['neutron-f5-bigip-lbaas-service']
   Neutron_f5_bigip_lbaas_agent_config<||> ~> Service['neutron-f5-bigip-lbaas-service']
 
+
+  ##FIXME
+  # Service<| title == 'neutron-server' |> -> Service<| title == 'neutron-f5-bigip-lbaas-service' |>
+  # Service['neutron-f5-bigip-lbaas-service'] ~> Service<| title == 'neutron-server' |>
+
   # The LBaaS agent loads both neutron.ini and its own file.
   # This only lists config specific to the agent.  neutron.ini supplies
   # the rest.
@@ -99,7 +104,7 @@ class neutron::agents::f5-bigip-lbaas (
     mode => '0755',
     owner => root,
     group => root,
-    source => "puppet:///modules/neutron/files/f5-service-provider.sh"
+    source => "puppet:///modules/neutron/files/f5-service-provider.sh",
   }
 
   neutron_config {'DEFAULT/service_plugins':
@@ -108,19 +113,19 @@ class neutron::agents::f5-bigip-lbaas (
   
   ## if service_provider=LOADBALANCER:F5 exists in /etc/neutron/neutron.conf change it's value
   exec { "f5-bigip-lbaas-agent-service_provider_exists":
-    command => "sed -i -e 's/^service_provider=LOADBALANCER:F5.*/service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver/' /etc/neutron/neutron.conf"
+    command => "sed -i -e 's/^service_provider=LOADBALANCER:F5.*/service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver/' /etc/neutron/neutron.conf",
     path    => "/usr/bin:/usr/sbin:/bin",
-    onlyif  => "bash /tmp/f5-service-provider.sh"
-    require => File['f5-service-provider.sh']
+    onlyif  => "bash /tmp/f5-service-provider.sh",
+    require => File['f5-service-provider.sh'],
   }
   
   ## add service_provider=LOADBALANCER:F5 if it isn't exist in /etc/neutron/neutron.conf
   ## FIXME: dumb `echo` isn't safe. Should be changed
   exec { "f5-bigip-lbaas-agent-service_provider_not_exists":
-    command => "echo 'service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver' >> /etc/neutron/neutron.conf"
+    command => "echo 'service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver' >> /etc/neutron/neutron.conf",
     path    => "/usr/bin:/usr/sbin:/bin",
-    unless  => "bash /tmp/f5-service-provider.sh"
-    require => File['f5-service-provider.sh']
+    unless  => "bash /tmp/f5-service-provider.sh",
+    require => File['f5-service-provider.sh'],
   }
 
   file {'f5-bigip-lbaas-ocf-script':
@@ -128,7 +133,7 @@ class neutron::agents::f5-bigip-lbaas (
     mode => '0755',
     owner => root,
     group => root,
-    source => "puppet:///modules/neutron/files/ocf/neutron-agent-f5"
+    source => "puppet:///modules/neutron/files/ocf/neutron-agent-f5",
   }
 
 
