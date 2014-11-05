@@ -91,11 +91,45 @@ class neutron::agents::f5-bigip-lbaas (
       name    => 'f5-bigip-lbaas-driver-agent',
     }
   #}
-  #exec { "f5-bigip-lbaas-agent-service_provider":
-  #  command => "sed -e 's/^service_provider=LOADBALANCER:F5/service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver/'"
-  #  path    => "/usr/bin:/usr/sbin:/bin",
-  #  onlyif  => "bash /tmp/f5-service-provider.sh"
-  #}
+
+  #File['f5-service-provider.sh'] -> Exec['f5-bigip-lbaas-agent-service_provider']
+
+  file {'f5-service-provider.sh':
+    path => "/tmp/f5-service-provider.sh",
+    mode => '0755',
+    owner => root,
+    group => root,
+    source => "puppet:///modules/neutron/files/f5-service-provider.sh"
+  }
+
+  neutron_config {'DEFAULT/service_plugins':
+    value => 'neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,neutron.services.firewall.fwaas_plugin.FirewallPlugin,neutron.services.metering.metering_plugin.MeteringPlugin,neutron.services.loadbalancer.plugin.LoadBalancerPlugin';
+  }
+  
+  ## if service_provider=LOADBALANCER:F5 exists in /etc/neutron/neutron.conf change it's value
+  exec { "f5-bigip-lbaas-agent-service_provider_exists":
+    command => "sed -i -e 's/^service_provider=LOADBALANCER:F5.*/service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver/' /etc/neutron/neutron.conf"
+    path    => "/usr/bin:/usr/sbin:/bin",
+    onlyif  => "bash /tmp/f5-service-provider.sh"
+    require => File['f5-service-provider.sh']
+  }
+  
+  ## add service_provider=LOADBALANCER:F5 if it isn't exist in /etc/neutron/neutron.conf
+  ## FIXME: dumb `echo` isn't safe. Should be changed
+  exec { "f5-bigip-lbaas-agent-service_provider_not_exists":
+    command => "echo 'service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver' >> /etc/neutron/neutron.conf"
+    path    => "/usr/bin:/usr/sbin:/bin",
+    unless  => "bash /tmp/f5-service-provider.sh"
+    require => File['f5-service-provider.sh']
+  }
+
+  file {'f5-bigip-lbaas-ocf-script':
+    path => "/usr/lib/ocf/resource.d/mirantis/neutron-agent-f5",
+    mode => '0755',
+    owner => root,
+    group => root,
+    source => "puppet:///modules/neutron/files/ocf/neutron-agent-f5"
+  }
 
 
   if $manage_service {
