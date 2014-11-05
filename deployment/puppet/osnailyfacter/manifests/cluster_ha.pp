@@ -9,12 +9,7 @@ class osnailyfacter::cluster_ha {
   if $::use_quantum {
     $novanetwork_params  = {}
 
-    #$quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    if ! $::fuel_settings['keystone_ldap']['use_ldap'] {
-      $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    } else {
-      $quantum_config_raw = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
-    }
+    $quantum_config = sanitize_neutron_config($::fuel_settings, 'quantum_settings')
 
     if $::fuel_settings['nsx_plugin']['metadata']['enabled'] {
       $use_vmware_nsx = true
@@ -106,8 +101,6 @@ class osnailyfacter::cluster_ha {
   # override user passwords if using AD since it's read only
   # or other LDAP in read only
   if $::fuel_settings['keystone_ldap']['use_ldap'] {
-    $quantum_config  = merge($quantum_config_raw,  {'admin_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
-    #$quantum_config  = merge($quantum_config_raw,  {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $nova_hash       = merge($nova_hash_raw,       {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $glance_hash     = merge($glance_hash_raw,     {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
     $swift_hash      = merge($swift_hash_raw,      {'user_password' => $::fuel_settings['keystone_ldap']['ldap_service_users_pass']})
