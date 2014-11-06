@@ -156,7 +156,8 @@ class neutron (
     'DEFAULT/publish_errors':               value => false;
     'DEFAULT/auth_strategy':                value => $auth_strategy;
     'DEFAULT/core_plugin':                  value => $neutron_config['server']['core_plugin'];
-    'DEFAULT/service_plugins':              value => $neutron_config['server']['service_plugins'];
+    ##FIXME: should rewrite this case if $::fuel_settings['f5']['use_lbaas'] is true
+    #'DEFAULT/service_plugins':              value => $neutron_config['server']['service_plugins'];
     'DEFAULT/bind_host':                    value => $server_bind_host;
     'DEFAULT/bind_port':                    value => $neutron_config['server']['bind_port'];
     'DEFAULT/base_mac':                     value => $neutron_config['L2']['base_mac'];

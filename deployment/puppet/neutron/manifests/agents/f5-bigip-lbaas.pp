@@ -109,13 +109,14 @@ class neutron::agents::f5-bigip-lbaas (
 
   neutron_config {'DEFAULT/service_plugins':
     value => 'neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,neutron.services.firewall.fwaas_plugin.FirewallPlugin,neutron.services.metering.metering_plugin.MeteringPlugin,neutron.services.loadbalancer.plugin.LoadBalancerPlugin';
-  }
+  } ~> Service['neutron-server']
   
+  #Exec['f5-bigip-lbaas-agent-service_provider_not_exists'] -> Exec['f5-bigip-lbaas-agent-service_provider_exists'] ~> Service['neutron-server']
   ## if service_provider=LOADBALANCER:F5 exists in /etc/neutron/neutron.conf change it's value
   exec { "f5-bigip-lbaas-agent-service_provider_exists":
     command => "sed -i -e 's/^service_provider=LOADBALANCER:F5.*/service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver/' /etc/neutron/neutron.conf",
     path    => "/usr/bin:/usr/sbin:/bin",
-    onlyif  => "bash /tmp/f5-service-provider.sh",
+    unless  => "bash /tmp/f5-service-provider.sh",
     require => File['f5-service-provider.sh'],
   }
   
@@ -124,7 +125,7 @@ class neutron::agents::f5-bigip-lbaas (
   exec { "f5-bigip-lbaas-agent-service_provider_not_exists":
     command => "echo 'service_provider=LOADBALANCER:F5:neutron.services.loadbalancer.drivers.f5.plugin_driver.F5PluginDriver' >> /etc/neutron/neutron.conf",
     path    => "/usr/bin:/usr/sbin:/bin",
-    unless  => "bash /tmp/f5-service-provider.sh",
+    onlyif  => "bash /tmp/f5-service-provider.sh",
     require => File['f5-service-provider.sh'],
   }
 
