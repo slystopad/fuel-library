@@ -36,7 +36,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
 OCF_RESKEY_binary_default="f5-bigip-lbaas-agent"
 OCF_RESKEY_config_default="/etc/neutron/neutron.conf"
-OCF_RESKEY_plugin_config_default="/etc/neutron/f5_bigip_lbaas_agent.ini"
+OCF_RESKEY_plugin_config_default="/etc/neutron/f5-bigip-lbaas-agent.ini"
 OCF_RESKEY_log_file_default="/var/log/neutron/f5-bigip-lbaas-agent.log"
 OCF_RESKEY_user_default="neutron"
 OCF_RESKEY_pid_default="$HA_RSCTMP/$OCF_RESOURCE_INSTANCE.pid"
