@@ -260,7 +260,7 @@ class neutron::agents::f5-bigip-lbaas (
       provider   => "pacemaker",
     }
 
-}
+#}
 # else {
 #    # No pacemaker use
 #    Neutron_config <| |> ~> Service['neutron-l3']
