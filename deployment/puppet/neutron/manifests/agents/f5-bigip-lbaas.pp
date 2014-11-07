@@ -48,6 +48,7 @@ class neutron::agents::f5-bigip-lbaas (
   #$user_group             = 'nogroup',
   #$manage_haproxy_package = true,
   $agent_cfg               = '',
+  $primary_controller      = false,
 ) {
 
   include neutron::params
@@ -168,8 +169,8 @@ class neutron::agents::f5-bigip-lbaas (
         provided_by     => 'mirantis',
         primitive_type  => 'neutron-agent-f5',
         parameters      => {
-          'debug'       => $debug,
-          'syslog'      => $::use_syslog,
+          #'debug'       => $debug,
+          #'syslog'      => $::use_syslog,
           'os_auth_url' => $neutron_config['keystone']['auth_url'],
           'tenant'      => $neutron_config['keystone']['admin_tenant_name'],
           'username'    => $neutron_config['keystone']['admin_user'],

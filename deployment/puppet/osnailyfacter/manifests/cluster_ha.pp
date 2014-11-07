@@ -684,6 +684,7 @@ class osnailyfacter::cluster_ha {
         class {'neutron::agents::f5-bigip-lbaas':
           agent_cfg		=> $f5_hash,
           neutron_config	=> $quantum_config,
+          primary_controller    => $primary_controller,
         }
       }
 
