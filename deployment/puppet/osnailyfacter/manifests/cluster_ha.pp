@@ -97,6 +97,7 @@ class osnailyfacter::cluster_ha {
   $nodes_hash           = $::fuel_settings['nodes']
   $mp_hash              = $::fuel_settings['mp']
   $network_manager      = "nova.network.manager.${novanetwork_params['network_manager']}"
+  $netapp_hash		= $::fuel_settings['netapp']
 
   # override user passwords if using AD since it's read only
   # or other LDAP in read only
