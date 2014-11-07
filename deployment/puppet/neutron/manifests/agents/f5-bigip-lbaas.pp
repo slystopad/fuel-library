@@ -93,7 +93,7 @@ class neutron::agents::f5-bigip-lbaas (
 
   Anchor['neutron-f5-bigip-lbaas'] ->
     Neutron_l3_agent_config <| |> ->
-          Service<| title=='neutron-f5-bigip-lbaas' |>  ->
+          Service<| title=='neutron-f5-bigip-lbaas-service' |>  ->
               Anchor['neutron-f5-bigip-lbaas-done']
 
   #if $::neutron::params::lbaas_agent_package {
