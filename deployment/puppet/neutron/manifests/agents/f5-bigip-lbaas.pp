@@ -219,7 +219,7 @@ class neutron::agents::f5-bigip-lbaas (
       #  ],
       #}
 
-      Service['neutron-f5-bigip-lbaas-init_stopped'] ->
+      Service['neutron-f5-bigip-lbaas-service-init_stopped'] ->
         Cs_resource["p_${::neutron::params::f5_bigip_lbaas_agent_service}"] ->
            Service['neutron-f5-bigip-lbaas-service']
 
