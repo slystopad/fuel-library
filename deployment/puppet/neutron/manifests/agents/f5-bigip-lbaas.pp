@@ -37,6 +37,7 @@
 #   Defaults to true
 #
 class neutron::agents::f5-bigip-lbaas (
+  $neutron_config     = {},
   $package_ensure         = present,
   $enabled                = true,
   $manage_service         = true,
@@ -51,8 +52,12 @@ class neutron::agents::f5-bigip-lbaas (
 
   include neutron::params
 
-  Neutron_config<||>             ~> Service['neutron-f5-bigip-lbaas-service']
-  Neutron_f5_bigip_lbaas_agent_config<||> ~> Service['neutron-f5-bigip-lbaas-service']
+  #Neutron_config<||>             ~> Service['neutron-f5-bigip-lbaas-service']
+  #Neutron_f5_bigip_lbaas_agent_config<||> ~> Service['neutron-f5-bigip-lbaas-service']
+
+  Anchor<| title=='neutron-server-done' |> ->
+  anchor {'neutron-f5-bigip-lbaas': }
+  Service<| title=='neutron-server' |> -> Anchor['neutron-f5-bigip-lbaas']
 
 
   ##FIXME
@@ -69,6 +74,10 @@ class neutron::agents::f5-bigip-lbaas (
   #  'DEFAULT/use_namespaces':     value => $use_namespaces;
   #  'haproxy/user_group':         value => $user_group;
   #}
+
+  Neutron_config <| |> -> Neutron_f5_bigip_lbaas_agent_config <| |>
+  Neutron_f5_bigip_lbaas_agent_config <| |> -> Service['neutron-f5-bigip-lbaas-service']
+
   ##??? should fix values
   neutron_f5_bigip_lbaas_agent_config {
     'DEFAULT/icontrol_hostname':              value => $agent_cfg['icontrol_hostname'];
@@ -82,10 +91,15 @@ class neutron::agents::f5-bigip-lbaas (
     'DEFAULT/f5_vtep_selfip_name':            value => 'None';
   }
 
+  Anchor['neutron-f5-bigip-lbaas'] ->
+    Neutron_l3_agent_config <| |> ->
+          Service<| title=='neutron-f5-bigip-lbaas' |>  ->
+              Anchor['neutron-f5-bigip-lbaas-done']
 
   #if $::neutron::params::lbaas_agent_package {
   #if $::fuel_settings['f5']['use_lbaas'] {
     Package['neutron']            -> Package['neutron-f5-bigip-lbaas-agent']
+    ###???
     Package['neutron-f5-bigip-lbaas-agent'] -> Neutron_config<||>
     Package['neutron-f5-bigip-lbaas-agent'] -> Neutron_f5_bigip_lbaas_agent_config<||>
     package { 'neutron-f5-bigip-lbaas-agent':
@@ -129,6 +143,9 @@ class neutron::agents::f5-bigip-lbaas (
     require => File['f5-service-provider.sh'],
   }
 
+#  if $service_provider == 'pacemaker' {
+  # OCF script for pacemaker
+  # and his dependences
   file {'f5-bigip-lbaas-ocf-script':
     path => "/usr/lib/ocf/resource.d/mirantis/neutron-agent-f5",
     mode => '0755',
@@ -137,21 +154,151 @@ class neutron::agents::f5-bigip-lbaas (
     source => "puppet:///modules/neutron/ocf/neutron-agent-f5",
   }
 
+    Anchor['neutron-f5-bigip-lbaas'] -> File['f5-bigip-lbaas-ocf-script']
+    Neutron_l3_agent_config <| |> -> File['f5-bigip-lbaas-ocf-script']
+    Package['pacemaker'] -> File['f5-bigip-lbaas-ocf-script']
+    File<| title == 'ocf-mirantis-path' |> -> File['f5-bigip-lbaas-ocf-script']
+#    File<| title == 'q-agent-cleanup.py'|> -> File['neutron-l3-agent-ocf']
+    Package['neutron-f5-bigip-lbaas-agent'] -> File['f5-bigip-lbaas-ocf-script']
 
-  if $manage_service {
-    if $enabled {
-      $service_ensure = 'running'
+    if $primary_controller {
+      cs_resource { "p_${::neutron::params::f5_bigip_lbaas_agent_service}":
+        ensure          => present,
+        primitive_class => 'ocf',
+        provided_by     => 'mirantis',
+        primitive_type  => 'neutron-agent-f5',
+        parameters      => {
+          'debug'       => $debug,
+          'syslog'      => $::use_syslog,
+          'os_auth_url' => $neutron_config['keystone']['auth_url'],
+          'tenant'      => $neutron_config['keystone']['admin_tenant_name'],
+          'username'    => $neutron_config['keystone']['admin_user'],
+          'password'    => $neutron_config['keystone']['admin_password'],
+        },
+        metadata        => { 'resource-stickiness' => '1' },
+        operations      => {
+          'monitor'  => {
+            'interval' => '20',
+            'timeout'  => '10'
+          }
+          ,
+          'start'    => {
+            'timeout' => '60'
+          }
+          ,
+          'stop'     => {
+            'timeout' => '60'
+          }
+        },
+      }
+      Cs_resource["p_${::neutron::params::f5_bigip_lbaas_agent_service}"] ->
+      cs_order { 'f5_bigip_lbaas-after-ovs':
+        ensure => present,
+        first  => "clone_p_${::neutron::params::ovs_agent_service}",
+        second => "p_${::neutron::params::f5_bigip_lbaas_agent_service}",
+        score  => 'INFINITY',
+      } -> Service['neutron-f5-bigip-lbaas-service']
+
+      Cs_resource["p_${::neutron::params::f5_bigip_lbaas_agent_service}"] ->
+      cs_order { 'f5_bigip_lbaas-after-metadata':
+        ensure => present,
+        first  => "clone_p_neutron-metadata-agent",
+        second => "p_${::neutron::params::f5_bigip_lbaas_agent_service}",
+        score  => 'INFINITY',
+      } -> Service['neutron-f5-bigip-lbaas-service']
+
+      ## start DHCP and L3 agents on different controllers if it's possible
+      #Cs_resource["p_${::neutron::params::l3_agent_service}"] ->
+      #cs_colocation { 'dhcp-without-l3':
+      #  ensure     => present,
+      #  score      => '-100',
+      #  primitives => [
+      #    "p_${::neutron::params::dhcp_agent_service}",
+      #    "p_${::neutron::params::l3_agent_service}"
+      #  ],
+      #}
+
+      Service['neutron-f5-bigip-lbaas-init_stopped'] ->
+        Cs_resource["p_${::neutron::params::f5_bigip_lbaas_agent_service}"] ->
+           Service['neutron-f5-bigip-lbaas-service']
+
+      File['f5-bigip-lbaas-ocf-script'] -> Cs_resource["p_${::neutron::params::f5_bigip_lbaas_agent_service}"]
     } else {
-      $service_ensure = 'stopped'
+
+      File['f5-bigip-lbaas-ocf-script'] -> Service['neutron-f5-bigip-lbaas-service']
     }
-  }
 
-  service { 'neutron-f5-bigip-lbaas-service':
-    ensure  => $service_ensure,
-    #name    => $::neutron::params::lbaas_agent_service,
-    name    => 'f5-bigip-lbaas-agent',
-    enable  => $enabled,
-    require => Class['neutron'],
-  }
+    Anchor<| title == 'neutron-ovs-agent-done' |> -> Anchor<| title=='neutron-f5-bigip-lbaas' |>
+    Anchor<| title == 'neutron-metadata-agent-done' |> -> Anchor<| title=='neutron-f5-bigip-lbaas' |>
+    Anchor<| title == 'neutron-dhcp-agent-done' |> -> Anchor<| title=='neutron-f5-bigip-lbaas' |>
+#    if !defined(Package['lsof']) {
+#      package { 'lsof': }
+#    }
+#    Package['lsof'] -> File['neutron-l3-agent-ocf']
+
+    # Ensure service is stopped  and disabled by upstart/init/etc.
+    Anchor['neutron-f5-bigip-lbaas'] ->
+      Service['neutron-f5-bigip-lbaas-service-init_stopped'] ->
+        Service['neutron-f5-bigip-lbaas-service'] ->
+          Anchor['neutron-f5-bigip-lbaas-done']
+
+    service { 'neutron-f5-bigip-lbaas-service-init_stopped':
+      name       => "${::neutron::params::f5_bigip_lbaas_agent_service}",
+      enable     => false,
+      ensure     => stopped,
+      hasstatus  => true,
+      hasrestart => true,
+      provider   => 'generic',
+    }
+
+    service { 'neutron-f5-bigip-lbaas-service':
+      name       => "p_${::neutron::params::f5_bigip_lbaas_agent_service}",
+      enable     => true,
+      ensure     => running,
+      hasstatus  => true,
+      hasrestart => true,
+      provider   => "pacemaker",
+    }
+
 }
+# else {
+#    # No pacemaker use
+#    Neutron_config <| |> ~> Service['neutron-l3']
+#    Neutron_l3_agent_config <| |> ~> Service['neutron-l3']
+#    service { 'neutron-l3':
+#      name       => $::neutron::params::l3_agent_service,
+#      enable     => true,
+#      ensure     => running,
+#      hasstatus  => true,
+#      hasrestart => true,
+#      provider   => $::neutron::params::service_provider,
+#    }
+#  }
 
+#  if $manage_service {
+#    if $enabled {
+#      $service_ensure = 'running'
+#    } else {
+#      $service_ensure = 'stopped'
+#    }
+#  }
+
+#  service { 'neutron-f5-bigip-lbaas-service':
+#    ensure  => $service_ensure,
+#    #name    => $::neutron::params::lbaas_agent_service,
+#    name    => 'f5-bigip-lbaas-agent',
+#    enable  => $enabled,
+#    require => Class['neutron'],
+#  }
+
+#  anchor {'neutron-l3-cellar': }
+#  Anchor['neutron-l3-cellar'] -> Anchor['neutron-l3-done']
+  anchor {'neutron-f5-bigip-lbaas-done': }
+  Anchor['neutron-f5-bigip-lbaas'] -> Anchor['neutron-f5-bigip-lbaas-done']
+  Package<| title == 'neutron-f5-bigip-lbaas-agent'|> ~> Service<| title == 'neutron-f5-bigip-lbaas-service'|>
+#  if !defined(Service['neutron-l3']) {
+#    notify{ "Module ${module_name} cannot notify service neutron-l3 on package update": }
+#  }
+
+
+}

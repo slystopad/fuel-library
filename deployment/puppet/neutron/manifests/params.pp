@@ -43,6 +43,7 @@ class neutron::params {
 
     $l3_agent_package   = false
     $l3_agent_service   = 'neutron-l3-agent'
+    $f5_bigip_lbaas_agent_service   = 'f5_bigip_lbaas_agent'
 
     $metadata_agent_service = 'neutron-metadata-agent'
 
