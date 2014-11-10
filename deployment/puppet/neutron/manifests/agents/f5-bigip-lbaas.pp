@@ -249,7 +249,7 @@ class neutron::agents::f5-bigip-lbaas (
       ensure     => stopped,
       hasstatus  => true,
       hasrestart => true,
-      provider   => 'generic',
+    #  provider   => 'generic',
     }
 
     service { 'neutron-f5-bigip-lbaas-service':
