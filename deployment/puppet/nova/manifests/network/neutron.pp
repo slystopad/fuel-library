@@ -97,8 +97,8 @@ class nova::network::neutron (
   $neutron_ca_certificates_file    = undef,
   $security_group_api              = 'neutron',
   $firewall_driver                 = 'nova.virt.firewall.NoopFirewallDriver',
-  $vif_plugging_is_fatal           = true,
-  $vif_plugging_timeout            = '300'
+  $vif_plugging_is_fatal           = False,
+  $vif_plugging_timeout            = '0'
 ) {
 
   nova_config {

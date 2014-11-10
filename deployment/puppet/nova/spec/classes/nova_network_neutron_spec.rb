@@ -15,8 +15,8 @@ describe 'nova::network::neutron' do
       :neutron_extension_sync_interval => '600',
       :security_group_api              => 'neutron',
       :firewall_driver                 => 'nova.virt.firewall.NoopFirewallDriver',
-      :vif_plugging_is_fatal           => true,
-      :vif_plugging_timeout            => '300'
+      :vif_plugging_is_fatal           => false,
+      :vif_plugging_timeout            => '0'
     }
   end
 
