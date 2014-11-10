@@ -43,6 +43,7 @@ class horizon(
   $use_ssl               = false,
   $log_level             = 'WARNING',
   $use_syslog            = false,
+  $enable_lb             = false,
 ) {
 
   include horizon::params

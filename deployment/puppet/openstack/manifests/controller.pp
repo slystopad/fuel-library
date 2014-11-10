@@ -201,6 +201,7 @@ class openstack::controller (
   $max_pool_size                  = '50',
   $max_overflow                   = '30',
   $idle_timeout                   = '3600',
+  $enable_lb                      = false,
 ) {
 
   # Ensure things are run in order
@@ -525,6 +526,7 @@ class openstack::controller (
     verbose           => $verbose,
     debug             => $debug,
     use_syslog        => $use_syslog,
+    enable_lb         => $enable_lb,
   }
   class { 'openstack::auth_file':
     admin_user           => $admin_user,

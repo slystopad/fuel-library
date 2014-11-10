@@ -90,6 +90,7 @@ class openstack::controller_ha (
    $max_retries                    = '-1',
    $nova_report_interval           = '10',
    $nova_service_down_time         = '60',
+   $enable_lb                      = false,
  ) {
 
     class { '::openstack::ha::haproxy':
@@ -203,6 +204,7 @@ class openstack::controller_ha (
       max_pool_size                  => $max_pool_size,
       max_overflow                   => $max_overflow,
       idle_timeout                   => $idle_timeout,
+      enable_lb                      => $enable_lb,
     }
 
     if $quantum and $quantum_network_node {

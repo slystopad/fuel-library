@@ -300,6 +300,7 @@ class osnailyfacter::cluster_ha {
 
     class {'osnailyfacter::apache_api_proxy':}
 
+    $enable_lb = $::fuel_settings['f5']['use_lbaas']
     class { 'openstack::controller_ha':
       controllers                    => $::osnailyfacter::cluster_ha::controllers,
       controller_public_addresses    => $::osnailyfacter::cluster_ha::controller_public_addresses,
@@ -386,6 +387,7 @@ class osnailyfacter::cluster_ha {
       idle_timeout                   => $idle_timeout,
       nova_report_interval           => $::nova_report_interval,
       nova_service_down_time         => $::nova_service_down_time,
+      enable_lb	                     => $enable_lb,
     }
   }
 

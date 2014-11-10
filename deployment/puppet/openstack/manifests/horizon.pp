@@ -37,6 +37,7 @@ class openstack::horizon (
   $use_ssl               = false,
   $use_syslog            = false,
   $log_level             = 'WARNING',
+  $enable_lb             = false,
 ) {
 
   # class { 'memcached':
@@ -77,6 +78,7 @@ class openstack::horizon (
     use_ssl               => $use_ssl,
     use_syslog            => $use_syslog,
     log_level             => $log_level_real,
+    enable_lb             => $enable_lb,
   }
 }
 
