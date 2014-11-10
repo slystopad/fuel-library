@@ -152,6 +152,7 @@ class openstack::cinder(
         class { 'mellanox_openstack::cinder':
           iser => $iser
         }
+        class { 'osnailyfacter::cinder_netapp2':}
       }
       'vmdk': {
         class {'cinder::volume::vmdk':
