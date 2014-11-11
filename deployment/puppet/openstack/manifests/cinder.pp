@@ -152,7 +152,7 @@ class openstack::cinder(
         class { 'mellanox_openstack::cinder':
           iser => $iser
         }
-        class { 'osnailyfacter::cinder_netapp2':}
+        class { 'osnailyfacter::cinder_netapp2': }
       }
       'vmdk': {
         class {'cinder::volume::vmdk':
@@ -202,16 +202,4 @@ class openstack::cinder(
     class { "cinder::ceilometer": }
   }
 
-#    cinder_config {
-#	'DEFAULT/netapp_server_hostname': 	value => 172.16.41.231;
-#	'DEFAULT/netapp_server_port': 		value => 80;
-#	'DEFAULT/netapp_storage_protocol': 	value => iscsi;
-#	'DEFAULT/netapp_storage_family':	value => ontap_cluster;
-#	'DEFAULT/netapp_vserver': 		value => apple-vserver;
-#	'DEFAULT/netapp_volume_list': 		value => /test;
-#	'DEFAULT/netapp_login':			value => admin;
-#	'DEFAULT/netapp_password':		value => r00tme123!;
-#	'DEFAULT/volume_backend_name':		value => cmodeDirectiSCSI;
-#	'DEFAULT/volume_driver':		value => cinder.volume.drivers.netapp.common.NetAppDriver;
-#    }
 }

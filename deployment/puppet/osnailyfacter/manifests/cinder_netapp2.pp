@@ -1,6 +1,9 @@
 class osnailyfacter::cinder_netapp2 (
   $netapp_cfg   = $::fuel_settings['netapp']
 ){
+        package {'iscsi-initiator-utils.x86_64':
+          ensure => 'present';
+        } ->
         #osnailyfacter::cinder::backend::netapp {'netapp':
         osnailyfacter::cinder_netapp::netapp {'DEFAULT':
            netapp_login => $netapp_cfg['netapp_login'],
