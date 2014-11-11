@@ -46,8 +46,6 @@ OCF_RESKEY_username_default="neutron"
 OCF_RESKEY_password_default="neutron_pass"
 OCF_RESKEY_tenant_default="services"
 OCF_RESKEY_external_bridge_default="br-ex"
-OCF_RESKEY_rescheduling_tries_default=5
-OCF_RESKEY_rescheduling_interval_default=33
 OCF_RESKEY_debug_default=false
 
 : ${OCF_RESKEY_os_auth_url=${OCF_RESKEY_os_auth_url_default}}
@@ -62,8 +60,6 @@ OCF_RESKEY_debug_default=false
 : ${OCF_RESKEY_pid=${OCF_RESKEY_pid_default}}
 : ${OCF_RESKEY_external_bridge=${OCF_RESKEY_external_bridge_default}}
 : ${OCF_RESKEY_debug=${OCF_RESKEY_debug_default}}
-: ${OCF_RESKEY_rescheduling_tries=${OCF_RESKEY_rescheduling_tries_default}}
-: ${OCF_RESKEY_rescheduling_interval=${OCF_RESKEY_rescheduling_interval_default}}
 : ${OCF_RESKEY_log_file=${OCF_RESKEY_log_file_default}}
 
 
@@ -214,22 +210,6 @@ External bridge for l3-agent
   <content type="boolean" default="false"/>
 </parameter>
 
-<parameter name="rescheduling_tries" unique="0" required="0">
-  <longdesc lang="en">
-  Tries to start rescheduling script after start of agent.
-  </longdesc>
-  <shortdesc lang="en">Tries to start rescheduling script after start of agent.</shortdesc>
-  <content type="boolean" default="${OCF_RESKEY_rescheduling_tries_default}"/>
-</parameter>
-
-<parameter name="rescheduling_interval" unique="0" required="0">
-  <longdesc lang="en">
-  Interval between starts of rescheduling script.
-  </longdesc>
-  <shortdesc lang="en">Interval between starts of rescheduling script.</shortdesc>
-  <content type="boolean" default="${OCF_RESKEY_rescheduling_interval_default}"/>
-</parameter>
-
 <parameter name="syslog" unique="0" required="0">
   <longdesc lang="en">
   Enable logging to syslog
@@ -297,16 +277,10 @@ neutron_l3_agent_validate() {
 }
 
 setup_auth() {
-    # setup token-based authentication if it possible
     AUTH_TOKEN=""
 
     if [[ -f $OCF_RESKEY_keystone_config ]] ; then
         AUTH_TOKEN=$(grep -v '#' $OCF_RESKEY_keystone_config | grep -i 'admin_token\s*=\s*' | awk -F'=' '{print $2}')
-    fi
-
-    AUTH_TAIL=""
-    if [[ -n "$AUTH_TOKEN" ]] ; then
-        AUTH_TAIL="--admin-auth-url=${OCF_RESKEY_os_auth_url} --auth-token=${AUTH_TOKEN}"
     fi
 
     true
@@ -374,7 +348,7 @@ clean_up() {
     count=3  # we will try kill process 3 times
     while [ $count -gt 0 ]; do
         # we can't use ps, because ps can't select processes for given network namespace
-        inside_ns_pids=`get_pid_list_for_ns_list "$ns_list"`
+        inside_ns_pids=`get_pid_list_for_ns_list $ns_list`
         if [ -z "$inside_ns_pids" ] ; then
             break
         fi
@@ -386,7 +360,7 @@ clean_up() {
     done
 
     # kill all remaining proceses, that not died by simple kill
-    inside_ns_pids=`get_pid_list_for_ns_list "$ns_list"`
+    inside_ns_pids=`get_pid_list_for_ns_list $ns_list`
     if [ ! -z "$inside_ns_pids" ] ; then
         for ns_pid in $inside_ns_pids ; do
           ocf_run kill -9 $ns_pid
@@ -451,13 +425,14 @@ neutron_l3_agent_start() {
         sleep 3
     done
 
+    # setup token-based authentication if it possible
+    AUTH_TAIL=""
+    if [[ -n "$AUTH_TOKEN" ]] ; then
+        AUTH_TAIL="--admin-auth-url=${OCF_RESKEY_os_auth_url} --auth-token=${AUTH_TOKEN}"
+    fi
+
     # detach deferred rescheduling procedure
-    RESCHEDULING_CMD="q-agent-cleanup.py --agent=l3 --reschedule --remove-dead ${AUTH_TAIL} 2>&1 >> /var/log/neutron/rescheduling.log"
-    RESCH_CMD=''
-    for ((i=0; i<$OCF_RESKEY_rescheduling_tries; i++)) ; do
-        RESCH_CMD="$RESCH_CMD sleep $OCF_RESKEY_rescheduling_interval ; $RESCHEDULING_CMD ;"
-    done
-    bash -c "$RESCH_CMD" &
+    bash -c "sleep 33 ; q-agent-cleanup.py --agent=l3 --reschedule --remove-dead ${AUTH_TAIL} 2>&1 >> /var/log/neutron/rescheduling.log " &
     fuel-fdb-cleaner --ssh-keyfile /root/.ssh/id_rsa_neutron -l /var/log/neutron/fdb-cleaner.log
 
     ocf_log info "OpenStack Router (neutron-l3-agent) started"
@@ -524,8 +499,6 @@ neutron_l3_agent_stop() {
     clean_up
     sleep 1
     clean_up_namespaces
-    q-agent-cleanup.py --agent=l3 --remove-self ${AUTH_TAIL} 2>&1 >> /var/log/neutron/rescheduling.log &
-    sleep 3
 
     return $OCF_SUCCESS
 }
