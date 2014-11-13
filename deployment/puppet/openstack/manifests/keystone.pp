@@ -103,9 +103,9 @@ class openstack::keystone (
   ## neutron user was changed int sanitise_quantum_config function 
   #$neutron_auth_name
   $ceilometer_auth_name        = "ceilometer${auth_name_suffix}",
-  $cinder_auth_name            = "cinder${auth_name_suffix}",
-  $nova_auth_name              = "nova${auth_name_suffix}",
-  $glance_auth_name            = "glance${auth_name_suffix}",
+  $cinder_auth_name            = 'cinder${auth_name_suffix}',
+  $nova_auth_name              = 'nova${auth_name_suffix}',
+  $glance_auth_name            = 'glance${auth_name_suffix}',
 ) {
 
   # Install and configure Keystone
