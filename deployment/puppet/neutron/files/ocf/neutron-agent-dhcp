@@ -36,7 +36,6 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
 OCF_RESKEY_binary_default="neutron-dhcp-agent"
 OCF_RESKEY_config_default="/etc/neutron/neutron.conf"
-OCF_RESKEY_keystone_config_default="/etc/keystone/keystone.conf"
 OCF_RESKEY_plugin_config_default="/etc/neutron/dhcp_agent.ini"
 OCF_RESKEY_log_file_default="/var/log/neutron/dhcp-agent.log"
 OCF_RESKEY_user_default="neutron"
@@ -45,6 +44,8 @@ OCF_RESKEY_os_auth_url_default="http://localhost:5000/v2.0"
 OCF_RESKEY_username_default="neutron"
 OCF_RESKEY_password_default="neutron_pass"
 OCF_RESKEY_tenant_default="services"
+OCF_RESKEY_rescheduling_tries_default=5
+OCF_RESKEY_rescheduling_interval_default=33
 OCF_RESKEY_debug_default='false'
 
 
@@ -54,11 +55,12 @@ OCF_RESKEY_debug_default='false'
 : ${OCF_RESKEY_tenant=${OCF_RESKEY_tenant_default}}
 : ${OCF_RESKEY_binary=${OCF_RESKEY_binary_default}}
 : ${OCF_RESKEY_config=${OCF_RESKEY_config_default}}
-: ${OCF_RESKEY_keystone_config=${OCF_RESKEY_keystone_config_default}}
 : ${OCF_RESKEY_plugin_config=${OCF_RESKEY_plugin_config_default}}
 : ${OCF_RESKEY_user=${OCF_RESKEY_user_default}}
 : ${OCF_RESKEY_pid=${OCF_RESKEY_pid_default}}
 : ${OCF_RESKEY_log_file=${OCF_RESKEY_log_file_default}}
+: ${OCF_RESKEY_rescheduling_tries=${OCF_RESKEY_rescheduling_tries_default}}
+: ${OCF_RESKEY_rescheduling_interval=${OCF_RESKEY_rescheduling_interval_default}}
 : ${OCF_RESKEY_debug=${OCF_RESKEY_debug_default}}
 
 
@@ -110,14 +112,6 @@ Location of the OpenStack Neutron Service (neutron-server) configuration file
 </longdesc>
 <shortdesc lang="en">OpenStack DHCP Server (neutron-server) config file</shortdesc>
 <content type="string" default="${OCF_RESKEY_config_default}" />
-</parameter>
-
-<parameter name="keystone_config" unique="0" required="0">
-<longdesc lang="en">
-Location of the Keystone configuration file
-</longdesc>
-<shortdesc lang="en">OpenStack Keystone config file</shortdesc>
-<content type="string" default="${OCF_RESKEY_keystone_config_default}" />
 </parameter>
 
 <parameter name="plugin_config" unique="0" required="0">
@@ -185,6 +179,21 @@ Admin tenant name
 <content type="string" default="${OCF_RESKEY_tenant_default}" />
 </parameter>
 
+<parameter name="rescheduling_tries" unique="0" required="0">
+  <longdesc lang="en">
+  Tries to start rescheduling script after start of agent.
+  </longdesc>
+  <shortdesc lang="en">Tries to start rescheduling script after start of agent.</shortdesc>
+  <content type="boolean" default="${OCF_RESKEY_rescheduling_tries_default}"/>
+</parameter>
+
+<parameter name="rescheduling_interval" unique="0" required="0">
+  <longdesc lang="en">
+  Interval between starts of rescheduling script.
+  </longdesc>
+  <shortdesc lang="en">Interval between starts of rescheduling script.</shortdesc>
+  <content type="boolean" default="${OCF_RESKEY_rescheduling_interval_default}"/>
+</parameter>
 
 <parameter name="additional_parameters" unique="0" required="0">
 <longdesc lang="en">
@@ -244,15 +253,6 @@ neutron_dhcp_agent_validate() {
     true
 }
 
-setup_auth() {
-    AUTH_TOKEN=""
-
-    if [[ -f $OCF_RESKEY_keystone_config ]] ; then
-        AUTH_TOKEN=$(grep -v '#' $OCF_RESKEY_keystone_config | grep -i 'admin_token\s*=\s*' | awk -F'=' '{print $2}')
-    fi
-
-    true
-}
 
 neutron_dhcp_agent_status() {
     local pid
@@ -315,7 +315,7 @@ clean_up() {
     count=3  # we will try kill process 3 times
     while [ $count -gt 0 ]; do
         # we can't use ps, because ps can't select processes for given network namespace
-        inside_ns_pids=`get_pid_list_for_ns_list $ns_list`
+        inside_ns_pids=`get_pid_list_for_ns_list "$ns_list"`
         if [ -z "$inside_ns_pids" ] ; then
             break
         fi
@@ -327,7 +327,7 @@ clean_up() {
     done
 
     # kill all remaining proceses, that not died by simple kill
-    inside_ns_pids=`get_pid_list_for_ns_list $ns_list`
+    inside_ns_pids=`get_pid_list_for_ns_list "$ns_list"`
     if [ ! -z "$inside_ns_pids" ] ; then
         for ns_pid in $inside_ns_pids ; do
           ocf_run kill -9 $ns_pid
@@ -390,14 +390,13 @@ neutron_dhcp_agent_start() {
         sleep 3
     done
 
-    # setup token-based authentication if it possible
-    AUTH_TAIL=""
-    if [[ -n "$AUTH_TOKEN" ]] ; then
-        AUTH_TAIL="--admin-auth-url=${OCF_RESKEY_os_auth_url} --auth-token=${AUTH_TOKEN}"
-    fi
-
     # detach deffered rescheduling procedure
-    bash -c "sleep 33 ; q-agent-cleanup.py --agent=dhcp --reschedule --remove-dead ${AUTH_TAIL} 2>&1 >> /var/log/neutron/rescheduling.log" &
+    RESCHEDULING_CMD="q-agent-cleanup.py --agent=dhcp --reschedule --remove-dead 2>&1 >> /var/log/neutron/rescheduling.log"
+    RESCH_CMD=''
+    for ((i=0; i<$OCF_RESKEY_rescheduling_tries; i++)) ; do
+        RESCH_CMD="$RESCH_CMD sleep $OCF_RESKEY_rescheduling_interval ; $RESCHEDULING_CMD ;"
+    done
+    bash -c "$RESCH_CMD" &
 
     ocf_log info "OpenStack DHCP Server (${OCF_RESKEY_binary}) started"
     return $OCF_SUCCESS
@@ -464,6 +463,8 @@ neutron_dhcp_agent_stop() {
     clean_up
     sleep 1
     clean_up_namespaces
+    q-agent-cleanup.py --agent=dhcp --remove-self 2>&1 >> /var/log/neutron/rescheduling.log &
+    sleep 3
 
     return $OCF_SUCCESS
 }
@@ -479,7 +480,6 @@ esac
 
 # Anything except meta-data and help must pass validation
 neutron_dhcp_agent_validate || exit $?
-setup_auth || exit $?
 
 # What kind of method was invoked?
 case "$1" in
