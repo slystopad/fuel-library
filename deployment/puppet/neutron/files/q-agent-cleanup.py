@@ -3,8 +3,6 @@ import re
 import time
 import os
 import sys
-import random
-import string
 import json
 import argparse
 import logging
@@ -12,15 +10,14 @@ import logging.handlers
 import shlex
 import subprocess
 import StringIO
+import socket
 from neutronclient.neutron import client as q_client
 from keystoneclient.v2_0 import client as ks_client
-from keystoneclient.apiclient.exceptions import NotFound as ks_NotFound
 
-LOG_NAME = 'q-agent-cleanup'
+LOG_NAME='q-agent-cleanup'
 
 API_VER = '2.0'
-PORT_ID_PART_LEN = 11
-TMP_USER_NAME = 'tmp_neutron_admin'
+PORT_ID_PART_LEN=11
 
 
 def get_authconfig(cfg_file):
@@ -92,80 +89,33 @@ class NeutronCleaner(object):
         self._token = None
         self._keystone = None
         self._client = None
-        self._need_cleanup_tmp_admin = False
-
-    def __del__(self):
-        if self._need_cleanup_tmp_admin and self._keystone and self._keystone.username:
-            try:
-                self._keystone.users.delete(self._keystone.users.find(username=self._keystone.username))
-            except:
-                # if we get exception while cleaning temporary account -- nothing harm
-                pass
-
-    def generate_random_passwd(self, length=13):
-        chars = string.ascii_letters + string.digits + '!@#$%^&*()'
-        random.seed = (os.urandom(1024))
-        return ''.join(random.choice(chars) for i in range(length))
 
     @property
     def keystone(self):
         if self._keystone is None:
-            ret_count = self.options.get('retries', 1)
-            tmp_passwd = self.generate_random_passwd()
+            ret_count = self.options.get('retries',1)
             while True:
-                if ret_count <= 0:
+                if ret_count <= 0 :
                     self.log.error(">>> Keystone error: no more retries for connect to keystone server.")
                     sys.exit(1)
                 try:
-                    a_token = self.options.get('auth-token')
-                    a_url = self.options.get('admin-auth-url')
-                    if a_token and a_url:
-                        self.log.debug("Authentication by predefined token.")
-                        # create keystone instance, authorized by service token
-                        ks = ks_client.Client(
-                            token=a_token,
-                            endpoint=a_url,
-                        )
-                        service_tenant = ks.tenants.find(name='services')
-                        auth_url = ks.endpoints.find(
-                                        service_id=ks.services.find(type='identity').id
-                                   ).internalurl
-                        # find and re-create temporary rescheduling-admin user with random password
-                        try:
-                            user = ks.users.find(username=TMP_USER_NAME)
-                            ks.users.delete(user)
-                        except ks_NotFound:
-                            # user not found, it's OK
-                            pass
-                        user = ks.users.create(TMP_USER_NAME, tmp_passwd, tenant_id=service_tenant.id)
-                        ks.roles.add_user_role(user, ks.roles.find(name='admin'), service_tenant)
-                        # authenticate newly-created tmp neutron admin
-                        self._keystone = ks_client.Client(
-                            username=user.username,
-                            password=tmp_passwd,
-                            tenant_id=user.tenantId,
-                            auth_url=auth_url,
-                        )
-                        self._need_cleanup_tmp_admin = True
-                    else:
-                        self.log.debug("Authentication by given credentionals.")
-                        self._keystone = ks_client.Client(
-                            username=self.auth_config['OS_USERNAME'],
-                            password=self.auth_config['OS_PASSWORD'],
-                            tenant_name=self.auth_config['OS_TENANT_NAME'],
-                            auth_url=self.auth_config['OS_AUTH_URL'],
-                        )
+                    self._keystone = ks_client.Client(
+                        username=self.auth_config['OS_USERNAME'],
+                        password=self.auth_config['OS_PASSWORD'],
+                        tenant_name=self.auth_config['OS_TENANT_NAME'],
+                        auth_url=self.auth_config['OS_AUTH_URL'],
+                    )
                     break
                 except Exception as e:
-                    errmsg = str(e.message).strip()  # str() need, because keystone may use int as message in exception
+                    errmsg = e.message.strip()
                     if re.search(r"Connection\s+refused$", errmsg, re.I) or \
                        re.search(r"Connection\s+timed\s+out$", errmsg, re.I) or\
                        re.search(r"Lost\s+connection\s+to\s+MySQL\s+server", errmsg, re.I) or\
                        re.search(r"Service\s+Unavailable$", errmsg, re.I) or\
                        re.search(r"'*NoneType'*\s+object\s+has\s+no\s+attribute\s+'*__getitem__'*$", errmsg, re.I) or \
                        re.search(r"No\s+route\s+to\s+host$", errmsg, re.I):
-                        self.log.info(">>> Can't connect to {0}, wait for server ready...".format(self.auth_config['OS_AUTH_URL']))
-                        time.sleep(self.options.sleep)
+                          self.log.info(">>> Can't connect to {0}, wait for server ready...".format(self.auth_config['OS_AUTH_URL']))
+                          time.sleep(self.options.sleep)
                     else:
                         self.log.error(">>> Keystone error:\n{0}".format(e.message))
                         raise e
@@ -175,7 +125,6 @@ class NeutronCleaner(object):
     def token(self):
         if self._token is None:
             self._token = self._keystone.auth_token
-            #self.log.debug("Auth_token: '{0}'".format(self._token))
         #todo: Validate existing token
         return self._token
 
@@ -184,9 +133,7 @@ class NeutronCleaner(object):
         if self._client is None:
             self._client = q_client.Client(
                 API_VER,
-                endpoint_url=self.keystone.endpoints.find(
-                                service_id=self.keystone.services.find(type='network').id
-                             ).adminurl,
+                endpoint_url=self.keystone.service_catalog.url_for(service_type='network'),
                 token=self.token,
             )
         return self._client
@@ -194,29 +141,35 @@ class NeutronCleaner(object):
     def _neutron_API_call(self, method, *args):
         ret_count = self.options.get('retries')
         while True:
-            if ret_count <= 0:
+            if ret_count <= 0 :
                 self.log.error("Q-server error: no more retries for connect to server.")
                 return []
             try:
                 rv = method (*args)
                 break
             except Exception as e:
-                errmsg = str(e.message).strip()
+                errmsg = e.message.strip()
                 if re.search(r"Connection\s+refused", errmsg, re.I) or\
                    re.search(r"Connection\s+timed\s+out", errmsg, re.I) or\
                    re.search(r"Lost\s+connection\s+to\s+MySQL\s+server", errmsg, re.I) or\
                    re.search(r"503\s+Service\s+Unavailable", errmsg, re.I) or\
                    re.search(r"No\s+route\s+to\s+host", errmsg, re.I):
-                    self.log.info("Can't connect to {0}, wait for server ready...".format(self.keystone.service_catalog.url_for(service_type='network')))
-                    time.sleep(self.options.sleep)
+                      self.log.info("Can't connect to {0}, wait for server ready...".format(self.keystone.service_catalog.url_for(service_type='network')))
+                      time.sleep(self.options.sleep)
                 else:
                     self.log.error("Neutron error:\n{0}".format(e.message))
                     raise e
             ret_count -= 1
         return rv
 
-    def _get_agents(self, use_cache=True):
+    def _get_agents(self,use_cache=True):
         return self._neutron_API_call(self.client.list_agents)['agents']
+
+    def _get_routers(self, use_cache=True):
+        return self._neutron_API_call(self.client.list_routers)['routers']
+
+    def _get_networks(self, use_cache=True):
+        return self._neutron_API_call(self.client.list_networks)['networks']
 
     def _list_networks_on_dhcp_agent(self, agent_id):
         return self._neutron_API_call(self.client.list_networks_on_dhcp_agent, agent_id)['networks']
@@ -224,9 +177,34 @@ class NeutronCleaner(object):
     def _list_routers_on_l3_agent(self, agent_id):
         return self._neutron_API_call(self.client.list_routers_on_l3_agent, agent_id)['routers']
 
+    def _list_l3_agents_on_router(self, router_id):
+        return self._neutron_API_call(self.client.list_l3_agent_hosting_routers, router_id)['agents']
+
+    def _list_dhcp_agents_on_network(self, network_id):
+        return self._neutron_API_call(self.client.list_dhcp_agent_hosting_networks, network_id)['agents']
+
+    def _list_orphaned_networks(self):
+        networks = self._get_networks()
+        self.log.debug("_list_orphaned_networks:, got list of networks {0}".format(json.dumps(networks,indent=4)))
+        orphaned_networks = []
+        for network in networks:
+            if len(self._list_dhcp_agents_on_network(network['id'])) == 0:
+                orphaned_networks.append(network['id'])
+        self.log.debug("_list_orphaned_networks:, got list of orphaned networks {0}".format(orphaned_networks))
+        return orphaned_networks
+
+    def _list_orphaned_routers(self):
+        routers = self._get_routers()
+        self.log.debug("_list_orphaned_routers:, got list of routers {0}".format(json.dumps(routers,indent=4)))
+        orphaned_routers = []
+        for router in routers:
+            if len(self._list_l3_agents_on_router(router['id'])) == 0:
+                orphaned_routers.append(router['id'])
+        self.log.debug("_list_orphaned_routers:, got list of orphaned routers {0}".format(orphaned_routers))
+        return orphaned_routers
+
     def _add_network_to_dhcp_agent(self, agent_id, net_id):
         return self._neutron_API_call(self.client.add_network_to_dhcp_agent, agent_id, {"network_id": net_id})
-
     def _add_router_to_l3_agent(self, agent_id, router_id):
         return self._neutron_API_call(self.client.add_router_to_l3_agent, agent_id, {"router_id": router_id})
 
@@ -258,7 +236,7 @@ class NeutronCleaner(object):
         )
         rc = process.wait()
         if rc != 0:
-            self.log.error("ERROR (rc={0}) while execution {1}".format(rc, ' '.join(cmd)))
+            self.log.error("ERROR (rc={0}) while execution {1}".format(rc,' '.join(cmd)))
             return []
         # filter namespaces by given agent type
         netns = []
@@ -272,7 +250,7 @@ class NeutronCleaner(object):
 
     def __collect_ports_for_namespace(self, ns):
         cmd = self.CMD__ip_netns_exec[:]
-        cmd.extend([ns, 'ip', 'l', 'show'])
+        cmd.extend([ns,'ip','l','show'])
         self.log.debug("Execute command '{0}'".format(' '.join(cmd)))
         process = subprocess.Popen(
             cmd,
@@ -282,7 +260,7 @@ class NeutronCleaner(object):
         )
         rc = process.wait()
         if rc != 0:
-            self.log.error("ERROR (rc={0}) while execution {1}".format(rc, ' '.join(cmd)))
+            self.log.error("ERROR (rc={0}) while execution {1}".format(rc,' '.join(cmd)))
             return []
         ports = []
         stdout = process.communicate()[0]
@@ -323,8 +301,10 @@ class NeutronCleaner(object):
                 )
                 rc = process.wait()
                 if rc != 0:
-                    self.log.error("ERROR (rc={0}) while execution {1}".format(rc, ' '.join(cmd)))
+                    self.log.error("ERROR (rc={0}) while execution {1}".format(rc,' '.join(cmd)))
         self.log.debug("_cleanup_ports: end.")
+
+        #todo: kill processes in given namespaces
 
         return True
 
@@ -372,6 +352,14 @@ class NeutronCleaner(object):
                     self.log.info("remove dead DHCP agent: {0}".format(agent['id']))
                     if not self.options.get('noop'):
                         self._neutron_API_call(self.client.delete_agent, agent['id'])
+        orphaned_networks=self._list_orphaned_networks()
+        self.log.info("_reschedule_agent_dhcp: rescheduling orphaned networks")
+        if orphaned_networks and agents['alive']:
+            for network in orphaned_networks:
+                self.log.info("_reschedule_agent_dhcp: rescheduling {0} to {1}".format(network,agents['alive'][0]['id']))
+                if not self.options.get('noop'):
+                    self._add_network_to_dhcp_agent(agents['alive'][0]['id'], network)
+        self.log.info("_reschedule_agent_dhcp: ended rescheduling of orphaned networks")
         self.log.debug("_reschedule_agent_dhcp: end.")
 
     def _reschedule_agent_l3(self, agent_type):
@@ -396,6 +384,8 @@ class NeutronCleaner(object):
                 )
         self.log.debug("L3 agents in cluster: {ags}".format(ags=json.dumps(agents, indent=4)))
         self.log.debug("Routers, attached to dead L3 agents: {rr}".format(rr=json.dumps(dead_routers, indent=4)))
+
+
         if dead_routers and agents['alive']:
             # get router-ID list of already attached to alive agent routerss
             lucky_ids = set()
@@ -424,8 +414,26 @@ class NeutronCleaner(object):
                 ))
                 if not self.options.get('noop'):
                     self._add_router_to_l3_agent(agents['alive'][0]['id'], rou[0]['id'])
-                    #todo: if error:
+
+        orphaned_routers=self._list_orphaned_routers()
+        self.log.info("_reschedule_agent_l3: rescheduling orphaned routers")
+        if orphaned_routers and agents['alive']:
+            for router in orphaned_routers:
+                self.log.info("_reschedule_agent_l3: rescheduling {0} to {1}".format(router,agents['alive'][0]['id']))
+                if not self.options.get('noop'):
+                    self._add_router_to_l3_agent(agents['alive'][0]['id'], router)
+        self.log.info("_reschedule_agent_l3: ended rescheduling of orphaned routers")
         self.log.debug("_reschedule_agent_l3: end.")
+
+    def _remove_self(self,agent_type):
+        self.log.debug("_remove_self: start.")
+        for agent in self._get_agents_by_type(agent_type):
+            if agent['host'] == socket.gethostname():
+               self.log.info("_remove_self: deleting our own agent {0} of type {1}".format(agent['id'],agent_type))
+               if not self.options.get('noop'):
+                   self._neutron_API_call(self.client.delete_agent, agent['id'])
+        self.log.debug("_remove_self: end.")
+
 
     def _reschedule_agent(self, agent):
         self.log.debug("_reschedule_agents: start.")
@@ -435,10 +443,15 @@ class NeutronCleaner(object):
         self.log.debug("_reschedule_agents: end.")
 
     def do(self, agent):
+        if self.options.get('list-agents'):
+            self._list_agents(agent)
+            return 0
         if self.options.get('cleanup-ports'):
             self._cleanup_ports(agent)
         if self.options.get('reschedule'):
             self._reschedule_agent(agent)
+        if self.options.get('remove-self'):
+            self._remove_self(agent)
         # if self.options.get('remove-agent'):
         #     self._cleanup_agents(agent)
 
@@ -464,10 +477,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Neutron network node cleaning tool.')
     parser.add_argument("-c", "--auth-config", dest="authconf", default="/root/openrc",
                       help="Authenticating config FILE", metavar="FILE")
-    parser.add_argument("-t", "--auth-token", dest="auth-token", default=None,
-                      help="Authenticating token (instead username/passwd)", metavar="TOKEN")
-    parser.add_argument("-u", "--admin-auth-url", dest="admin-auth-url", default=None,
-                      help="Authenticating URL (admin)", metavar="URL")
     parser.add_argument("--retries", dest="retries", type=int, default=50,
                       help="try NN retries for API call", metavar="NN")
     parser.add_argument("--sleep", dest="sleep", type=int, default=2,
@@ -476,14 +485,22 @@ if __name__ == '__main__':
                       help="specyfy agents for cleaning", required=True)
     parser.add_argument("--cleanup-ports", dest="cleanup-ports", action="store_true", default=False,
                       help="cleanup ports for given agents on this node")
+    parser.add_argument("--remove-self", dest="remove-self", action="store_true", default=False,
+                      help="remove ourselves from agent list")
     parser.add_argument("--activeonly", dest="activeonly", action="store_true", default=False,
                       help="cleanup only active ports")
+    # parser.add_argument("--cleanup-ns", dest="cleanup-ns", action="store_true", default=False,
+    #                   help="cleanup namespaces for given agents")
+    # parser.add_argument("--remove-agent", dest="remove-agent", action="store_true", default=False,
+    #                   help="cleanup namespaces for given agents")
     parser.add_argument("--reschedule", dest="reschedule", action="store_true", default=False,
                       help="reschedule given agents")
     parser.add_argument("--remove-dead", dest="remove-dead", action="store_true", default=False,
                       help="remove dead agents while rescheduling")
     parser.add_argument("--test-alive-for-hostname", dest="test-hostnames", action="append",
                       help="testing agent's healthy for given hostname")
+    # parser.add_argument("--list", dest="list-agents", action="store_true", default=False,
+    #                   help="list agents and some additional information")
     parser.add_argument("--external-bridge", dest="external-bridge", default="br-ex",
                       help="external bridge name", metavar="IFACE")
     parser.add_argument("--integration-bridge", dest="integration-bridge", default="br-int",
