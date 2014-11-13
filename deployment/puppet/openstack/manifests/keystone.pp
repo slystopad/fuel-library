@@ -99,7 +99,7 @@ class openstack::keystone (
   $max_overflow                = '30',
   $max_retries                 = '-1',
   $use_ldap                    = $::fuel_settings['keystone_ldap']['use_ldap'],
-  $auth_name_suffix            = '_sys',
+  $auth_name_suffix            = '_sys'
   ## neutron user was changed int sanitise_quantum_config function 
   #$neutron_auth_name
   $ceilometer_auth_name        = "ceilometer${auth_name_suffix}",
