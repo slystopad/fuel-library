@@ -99,13 +99,6 @@ class openstack::keystone (
   $max_overflow                = '30',
   $max_retries                 = '-1',
   $use_ldap                    = $::fuel_settings['keystone_ldap']['use_ldap'],
-  $auth_name_suffix            = '_sys',
-  ## neutron user was changed int sanitise_quantum_config function 
-  #$neutron_auth_name
-  $ceilometer_auth_name        = "ceilometer${auth_name_suffix}",
-  $cinder_auth_name            = "cinder${auth_name_suffix}",
-  $nova_auth_name              = "nova${auth_name_suffix}",
-  $glance_auth_name            = "glance${auth_name_suffix}",
 ) {
 
   # Install and configure Keystone
@@ -257,7 +250,6 @@ class openstack::keystone (
         public_address   => $glance_public_real,
         admin_address    => $glance_admin_real,
         internal_address => $glance_internal_real,
-        auth_name        => $glance_auth_name,
       }
       Exec <| title == 'keystone-manage db_sync' |> -> Class['glance::keystone::auth']
     }
@@ -270,7 +262,6 @@ class openstack::keystone (
         admin_address    => $nova_admin_real,
         internal_address => $nova_internal_real,
         cinder            => $cinder,
-        auth_name         => $nova_auth_name,
       }
       Exec <| title == 'keystone-manage db_sync' |> -> Class['nova::keystone::auth']
     }
@@ -282,7 +273,6 @@ class openstack::keystone (
         public_address   => $cinder_public_real,
         admin_address    => $cinder_admin_real,
         internal_address => $cinder_internal_real,
-        auth_name        => $cinder_auth_name,
       }
      Exec <| title == 'keystone-manage db_sync' |> -> Class['cinder::keystone::auth']
     }
@@ -301,7 +291,6 @@ class openstack::keystone (
         public_address   => $ceilometer_public_real,
         admin_address    => $ceilometer_admin_real,
         internal_address => $ceilometer_internal_real,
-        auth_name        => $ceilometer_auth_name,
       }
       Exec <| title == 'keystone-manage db_sync' |> -> Class['ceilometer::keystone::auth']
     }

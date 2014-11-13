@@ -4,7 +4,6 @@ class osnailyfacter::cluster_ha {
   ##PARAMETERS DERIVED FROM YAML FILE
 
   $primary_controller = $::fuel_settings['role'] ? { 'primary-controller'=>true, default=>false }
-  $auth_name_suffix = '_sys'
 
 
   if $::use_quantum {
@@ -477,7 +476,6 @@ class osnailyfacter::cluster_ha {
           public_address   => $::fuel_settings['public_vip'],
           internal_address => $::fuel_settings['management_vip'],
           admin_address    => $::fuel_settings['management_vip'],
-          auth_name        => "swift${auth_name_suffix}",
         }
       }
       #TODO: PUT this configuration stanza into nova class
@@ -592,7 +590,7 @@ class osnailyfacter::cluster_ha {
         external_ip            => $controller_node_public,
 
         keystone_host     => $controller_node_address,
-        keystone_user     => "heat${auth_name_suffix}",
+        keystone_user     => 'heat',
         keystone_password => 'heat',
         keystone_tenant   => 'services',
 

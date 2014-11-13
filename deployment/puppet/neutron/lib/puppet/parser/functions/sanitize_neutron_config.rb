@@ -309,7 +309,7 @@ class MrntNeutron
         :auth_protocol => "http",
         :auth_api_version => "v2.0",
         :admin_tenant_name => "services",
-        :admin_user => "neutron_sys",
+        :admin_user => "neutron",
         :admin_password => "neutron_pass",
         :admin_email => "neutron@localhost",
         :signing_dir => "/var/lib/neutron/keystone-signing",
